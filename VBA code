@@ -1,0 +1,293 @@
+Sub READ_API()
+
+'To use this you will need to save API output data for "channels", "channelstats", and "allnodes" in text files
+'Then update the proper filepath for each of these text files in the code below
+'If you would rather browse yourself, use "GetOpenFilename" in the subsequent line instead.
+
+'Specify API output file for channels
+myFile = "C:\Users\...\channels.txt"
+'myFile = Application.GetOpenFilename()
+
+Cells(35, 22).Formula = Cells(35, 22).Formula
+Cells(35, 18).Formula = Cells(35, 18).Formula
+Cells(35, 19).Formula = Cells(35, 19).Formula
+
+Open myFile For Input As #1
+
+Worksheets("Dashboard").Columns("A:K").ClearContents
+Worksheets("Dashboard").Cells(1, 1) = "Node"
+Worksheets("Dashboard").Cells(1, 2) = "Node ID"
+Worksheets("Dashboard").Cells(1, 3) = "Channel ID"
+Worksheets("Dashboard").Cells(1, 4) = "State"
+Worksheets("Dashboard").Cells(1, 5) = "Outgoing"
+Worksheets("Dashboard").Cells(1, 6) = "Incoming"
+Worksheets("Dashboard").Cells(1, 7) = "Relayed"
+Worksheets("Dashboard").Cells(1, 8) = "Relay Fee"
+Worksheets("Dashboard").Cells(1, 9) = "Network Fee"
+Worksheets("Dashboard").Cells(1, 10) = "Online Outgoing"
+Worksheets("Dashboard").Cells(1, 11) = "Online Incoming"
+
+Worksheets("Rebalance").Columns("A:G").ClearContents
+Worksheets("Rebalance").Cells(1, 1) = "Node"
+Worksheets("Rebalance").Cells(1, 2) = "Node ID"
+Worksheets("Rebalance").Cells(1, 3) = "Channel ID"
+Worksheets("Rebalance").Cells(1, 4) = "Out / In"
+Worksheets("Rebalance").Cells(1, 5) = "Surplus"
+Worksheets("Rebalance").Cells(1, 6) = "ABS (Sort)"
+
+i = 1
+j = 1
+
+Do Until EOF(1)
+    Line Input #1, textline
+    'Added an extra space in the 2nd criteria to avoid false positives
+    If InStr(textline, "    {") <> 0 And InStr(textline, "      {") = 0 Then
+        i = i + 1
+    End If
+    
+    If InStr(textline, "nodeId") <> 0 Then
+        textline = Replace(textline, "nodeId1", "")
+        textline = Replace(textline, "nodeId2", "")
+        textline = Replace(textline, "nodeId", "")
+        textline = Replace(textline, Chr(34), "")
+        textline = Replace(textline, ":", "")
+        textline = Replace(textline, ",", "")
+        textline = Replace(textline, " ", "")
+        Worksheets("Dashboard").Cells(i, 2) = textline
+    ElseIf InStr(textline, "channelId") <> 0 Then
+        textline = Replace(textline, "channelId", "")
+        textline = Replace(textline, Chr(34), "")
+        textline = Replace(textline, ":", "")
+        textline = Replace(textline, ",", "")
+        textline = Replace(textline, " ", "")
+        Worksheets("Dashboard").Cells(i, 3) = textline
+    ElseIf InStr(textline, "state") <> 0 Then
+        textline = Replace(textline, "state", "")
+        textline = Replace(textline, Chr(34), "")
+        textline = Replace(textline, ":", "")
+        textline = Replace(textline, ",", "")
+        textline = Replace(textline, " ", "")
+        Worksheets("Dashboard").Cells(i, 4) = textline
+    ElseIf InStr(textline, "toLocal") <> 0 Then
+        textline = Replace(textline, "toLocal", "")
+        textline = Replace(textline, Chr(34), "")
+        textline = Replace(textline, ":", "")
+        textline = Replace(textline, ",", "")
+        textline = Replace(textline, " ", "")
+        textline = textline * 10 ^ -11
+        'This is backwards because the last instance of "toLocal" and "toRemote"
+        'refers to the remote node, which swaps the numbers.
+        Worksheets("Dashboard").Cells(i, 6) = textline
+    ElseIf InStr(textline, "toRemote") <> 0 Then
+        textline = Replace(textline, "toRemote", "")
+        textline = Replace(textline, Chr(34), "")
+        textline = Replace(textline, ":", "")
+        textline = Replace(textline, ",", "")
+        textline = Replace(textline, " ", "")
+        textline = textline * 10 ^ -11
+        'This is backwards because the last instance of "toLocal" and "toRemote"
+        'refers to the remote node, which swaps the numbers.
+        Worksheets("Dashboard").Cells(i, 5) = textline
+        'This copies balances to a new column only for channels in NORMAL state
+        If Worksheets("Dashboard").Cells(i, 4) = "NORMAL" Then
+            Worksheets("Dashboard").Cells(i, 10) = Worksheets("Dashboard").Cells(i, 5)
+            Worksheets("Dashboard").Cells(i, 11) = Worksheets("Dashboard").Cells(i, 6)
+        End If
+        
+    End If
+
+Loop
+
+Close #1
+
+
+
+
+'UPDATE PROBLEM CHANNEL WATCHLIST
+'Use column B instead of A for range since Node aliases havn't been imported yet
+totalChannels = ActiveWorkbook.Worksheets("Dashboard").Range("B" & Rows.Count).End(xlUp).Row
+lastbadchannel = ActiveWorkbook.Worksheets("Channel Watchlist").Range("B" & Rows.Count).End(xlUp).Row
+
+'Run through Channel watchlist
+'Delete closed nodes, or nodes in NORMAL state, from Channel watchlist
+For i = 2 To lastbadchannel
+    Del = 1
+    For j = 2 To totalChannels
+        'If you find matching ChannelID and it's not in NORMAL state, keep it.
+        If Worksheets("Channel Watchlist").Cells(i, 3) = Worksheets("Dashboard").Cells(j, 3) And Worksheets("Dashboard").Cells(j, 4) <> "NORMAL" Then
+            Del = 0
+            'Update Locked Funds if channel is not NORMAL
+            Worksheets("Channel Watchlist").Cells(i, 6) = Worksheets("Dashboard").Cells(j, 5) * Worksheets("Dashboard").Cells(35, 22)
+            'If the channel is not NORMAL but there has been an update to the status, reset status and date
+            If Worksheets("Channel Watchlist").Cells(i, 4) <> Worksheets("Dashboard").Cells(j, 4) Then
+                Worksheets("Channel Watchlist").Cells(i, 4) = Worksheets("Dashboard").Cells(j, 4)
+                Worksheets("Channel Watchlist").Cells(i, 5) = Date
+            End If
+        End If
+    Next j
+    If Del = 1 And Worksheets("Channel Watchlist").Cells(i, 2) <> "" Then
+        Worksheets("Channel Watchlist").Rows(i).Delete
+        i = i - 1
+    End If
+Next i
+
+'Recount channels on watchlist, since some rows could have been deleted
+lastbadchannel = ActiveWorkbook.Worksheets("Channel Watchlist").Range("B" & Rows.Count).End(xlUp).Row
+
+'Run through API output, comparing to Channel Watchlist
+'Add nodes that are NOT in NORMAL state
+For i = 2 To totalChannels
+    If Worksheets("Dashboard").Cells(i, 4) <> "NORMAL" Then
+        listed = 0
+        For j = 2 To lastbadchannel
+            If Worksheets("Channel Watchlist").Cells(j, 3) = Worksheets("Dashboard").Cells(i, 3) Then
+                listed = 1
+            End If
+        Next j
+        'Add newly problematic channels to end of list
+        If listed = 0 Then
+            lastbadchannel = lastbadchannel + 1
+            Worksheets("Channel Watchlist").Cells(lastbadchannel, 2) = Worksheets("Dashboard").Cells(i, 2)
+            Worksheets("Channel Watchlist").Cells(lastbadchannel, 3) = Worksheets("Dashboard").Cells(i, 3)
+            Worksheets("Channel Watchlist").Cells(lastbadchannel, 4) = Worksheets("Dashboard").Cells(i, 4)
+            Worksheets("Channel Watchlist").Cells(lastbadchannel, 5) = Date
+            Worksheets("Channel Watchlist").Cells(lastbadchannel, 6) = Worksheets("Dashboard").Cells(i, 5) * Worksheets("Dashboard").Cells(35, 22)
+        End If
+    End If
+Next i
+
+'Run through API output, create list of channel imbalances
+j = 2
+For i = 2 To totalChannels
+    If Worksheets("Dashboard").Cells(i, 4) = "NORMAL" Then
+        Worksheets("Rebalance").Cells(j, 2) = Worksheets("Dashboard").Cells(i, 2)
+        Worksheets("Rebalance").Cells(j, 3) = Worksheets("Dashboard").Cells(i, 3)
+        Worksheets("Rebalance").Cells(j, 4) = Worksheets("Dashboard").Cells(i, 5) / (Worksheets("Dashboard").Cells(i, 5) + Worksheets("Dashboard").Cells(i, 6))
+        Worksheets("Rebalance").Cells(j, 5) = Worksheets("Dashboard").Cells(i, 5) - (Worksheets("Dashboard").Cells(i, 5) + Worksheets("Dashboard").Cells(i, 6)) / 2
+        Worksheets("Rebalance").Cells(j, 6) = Abs(Worksheets("Rebalance").Cells(j, 5))
+        j = j + 1
+    End If
+Next i
+
+'sort Imbalanced channels by ABS(surplus)
+lastrow = ActiveWorkbook.Worksheets("Rebalance").Range("B" & Rows.Count).End(xlUp).Row
+Worksheets("Rebalance").Range("A1:F" & lastrow).Sort key1:=Worksheets("Rebalance").Range("F1:F" & lastrow), order1:=xlDescending, Header:=xlYes
+
+
+
+'Specify API output file for channelstats
+myFile = "C:\Users\...\channelstats.txt"
+'myFile = Application.GetOpenFilename()
+
+Open myFile For Input As #1
+
+i = 1
+j = 1
+
+Do Until EOF(1)
+    Line Input #1, textline
+    'Looking for channelId in file and then establishing match on Dashboard
+    If InStr(textline, "channelId") <> 0 Then
+        textline = Replace(textline, "channelId", "")
+        textline = Replace(textline, Chr(34), "")
+        textline = Replace(textline, ":", "")
+        textline = Replace(textline, ",", "")
+        textline = Replace(textline, " ", "")
+        For j = 2 To totalChannels
+            If Worksheets("Dashboard").Cells(j, 3) = textline Then
+                Exit For
+            End If
+        Next j
+    End If
+    If j <= totalChannels Then
+        If InStr(textline, "paymentCount") <> 0 Then
+            textline = Replace(textline, "paymentCount", "")
+            textline = Replace(textline, Chr(34), "")
+            textline = Replace(textline, ":", "")
+            textline = Replace(textline, ",", "")
+            textline = Replace(textline, " ", "")
+            Worksheets("Dashboard").Cells(j, 7) = textline
+        End If
+    
+        If InStr(textline, "relayFee") <> 0 Then
+            textline = Replace(textline, "relayFee", "")
+            textline = Replace(textline, Chr(34), "")
+            textline = Replace(textline, ":", "")
+            textline = Replace(textline, ",", "")
+            textline = Replace(textline, " ", "")
+            Worksheets("Dashboard").Cells(j, 8) = textline / 100000000
+        End If
+    
+        If InStr(textline, "networkFee") <> 0 Then
+            textline = Replace(textline, "networkFee", "")
+            textline = Replace(textline, Chr(34), "")
+            textline = Replace(textline, ":", "")
+            textline = Replace(textline, ",", "")
+            textline = Replace(textline, " ", "")
+            Worksheets("Dashboard").Cells(j, 9) = textline / 100000000
+        End If
+    End If
+Loop
+
+Close #1
+
+
+'Run through API output "AllNodes" in order to match Node ID's to aliases
+
+'Specify API output file for channels
+myFile = "C:\Users\...\allnodes.txt"
+'myFile = Application.GetOpenFilename()
+
+Open myFile For Input As #1
+
+
+Do Until EOF(1)
+    Line Input #1, textline
+    
+    If InStr(textline, "nodeId") <> 0 Then
+        textline = Replace(textline, "nodeId", "")
+        textline = Replace(textline, Chr(34), "")
+        textline = Replace(textline, ":", "")
+        textline = Replace(textline, ",", "")
+        textline = Replace(textline, " ", "")
+        nodeId = textline
+    End If
+    If InStr(textline, "alias") <> 0 Then
+        textline = Replace(textline, "alias", "")
+        textline = Replace(textline, Chr(34), "")
+        textline = Replace(textline, ":", "")
+        textline = Replace(textline, ",", "")
+        textline = Replace(textline, " ", "")
+        alias = textline
+        
+        'Using totalchannels for loops of all sheets for simplicity, because it includes all channels regardless of status
+        totalChannels = ActiveWorkbook.Worksheets("Dashboard").Range("B" & Rows.Count).End(xlUp).Row
+        For i = 2 To totalChannels
+            If Worksheets("Dashboard").Cells(i, 2) = nodeId Then
+                Worksheets("Dashboard").Cells(i, 1) = alias
+            End If
+        Next i
+        
+        For i = 2 To totalChannels
+            If Worksheets("Channel Watchlist").Cells(i, 2) = nodeId Then
+                Worksheets("Channel Watchlist").Cells(i, 1) = alias
+            End If
+        Next i
+        
+        For i = 2 To totalChannels
+            If Worksheets("Rebalance").Cells(i, 2) = nodeId Then
+                Worksheets("Rebalance").Cells(i, 1) = alias
+            End If
+        Next i
+
+    End If
+        
+
+Loop
+
+Close #1
+
+
+
+
+End Sub
