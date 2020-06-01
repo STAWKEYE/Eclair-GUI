@@ -29,10 +29,10 @@ Not sure how well it scales, but for 100 channels runtime is approx 4 seconds on
 How to read the output:			
 			
 	Dashboard		
-		Columns B thru F: Payment channel data from API call "channels"	
+		Columns B thru G: Payment channel data from API call "channels"	
 		Column A: aliases, cross-referenced from node ID using API call "AllNodes"	
-		Columns G thru I: Relay and fee data from API call "channelstats"	
-		Columns J thru P (hidden): Supporting data for Bandwidth chart	
+		Columns H thru J: Relay and fee data from API call "channelstats"	
+		Columns K thru Q (hidden): Supporting data for Bandwidth chart	
 		CHANNEL BALANCE chart: Each bar represents a payment channel, and the RELATIVE funds on both sides, to show how balanced the channel is.	
 			The range will need to be manually adjusted by you if you have far more or far fewer channels. I couldn't get it to be a dynamic range.
 		BANDWIDTH chart: The number of channels (Y-axis) that have enough capacity to route a payment of size X (X-axis), and in which direction.	
@@ -50,10 +50,6 @@ How to read the output:
 			
 		*** If you have a mobile wallet connected to your own Lightning Node, your mobile wallet will often show up on this list if it's OFFLINE,	
 		   and you'll likely see a large balance of LOCKED FUNDS. (i.e. you're likely to accidentally force close your own channel if you're not paying attention.)	
-		    If you add a note in the freeform column "This is just my mobile wallet" it will be erased every time that	
-		   your mobile wallet comes off the list and is put back on again (say you happen to have your mobile wallet running while using this spreadsheet.)	
-		  In order to keep a perpetual identifier on it, I added a line directly to the VBA code. Find the line and replace ###Your_Payment_Channel_ID_Here###	
-		   with your PaymentChannelID. This section of code could be copied several times if you'd like to use a custom identifier for any payment channels of special interest.	
 			
 	Rebalance		
 		A listing of all of your payment channels, ranked by the amount of imbalance (in true BTC value, not by percentage of channel capacity)	
